@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#080c14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Відлік">
+<title>Відлік</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#080c14; --surface:#0e1520; --surface2:#151e2d; --surface3:#1a2438;
+  --accent:#4af0c4; --accent2:#6c8aff; --purple:#c084fc;
+  --text:#e8edf5; --muted:#4a5568; --border:rgba(74,240,196,0.08);
+  --border2:rgba(74,240,196,0.18); --green:#4af0c4; --red:#ff6b6b;
+  --glow:rgba(74,240,196,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:60px;position:relative;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(74,240,196,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(74,240,196,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(74,240,196,0.06) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+.header{width:100%;max-width:520px;padding:48px 24px 0;position:relative;z-index:1}
+.header-eyebrow{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.header-eyebrow::before{content:'';width:20px;height:1px;background:var(--accent)}
+.header-title{font-size:26px;font-weight:700;color:var(--text);line-height:1.2}
+.header-title span{color:var(--accent)}
+.header-clock{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:6px}
+
+.card-hero{width:calc(100% - 48px);max-width:472px;margin-top:28px;background:var(--surface);border:1px solid var(--border2);border-radius:24px;padding:36px 32px 28px;position:relative;z-index:1;overflow:hidden;animation:fadeUp .5s ease both}
+.card-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.card-hero::after{content:'';position:absolute;bottom:-80px;right:-80px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,var(--glow) 0%,transparent 70%);pointer-events:none}
+.hero-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.hero-number{font-family:'JetBrains Mono',monospace;font-size:80px;font-weight:500;line-height:1;letter-spacing:-3px;color:var(--accent);transition:color .4s}
+.hero-number.neg{color:var(--red)}
+.hero-unit{font-family:'Syne',sans-serif;font-size:20px;font-weight:400;color:var(--muted);margin-left:6px}
+.past-tag{display:none;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red);background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:6px;padding:3px 10px}
+.progress-wrap{margin-top:24px}
+.progress-bar{height:2px;background:rgba(74,240,196,0.08);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width 1s ease}
+.progress-labels{display:flex;justify-content:space-between;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)}
+
+.detail-grid{width:calc(100% - 48px);max-width:472px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;position:relative;z-index:1;animation:fadeUp .5s ease .1s both}
+.detail-cell{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 10px;text-align:center;transition:border-color .2s}
+.detail-cell:hover{border-color:var(--border2)}
+.detail-num{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:500;color:var(--text);line-height:1}
+.detail-lbl{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.05em}
+
+.divider{width:calc(100% - 48px);max-width:472px;height:1px;background:var(--border);margin:24px 0 0;position:relative;z-index:1}
+.section-head{width:calc(100% - 48px);max-width:472px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:16px 0 12px;position:relative;z-index:1}
+.section-head::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.target-card{width:calc(100% - 48px);max-width:472px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;position:relative;z-index:1}
+.target-sub{font-size:10px;color:var(--muted);letter-spacing:.05em;margin-bottom:4px}
+.target-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:var(--purple)}
+
+.btn-full{width:calc(100% - 48px);max-width:472px;padding:15px 20px;border-radius:14px;font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s ease;letter-spacing:.02em;position:relative;z-index:1;margin-bottom:8px}
+.btn-full:active{transform:scale(0.98)}
+.btn-ghost-purple{background:rgba(192,132,252,0.05);color:var(--purple);border-color:rgba(192,132,252,0.25)}
+.btn-ghost-purple:hover{background:rgba(192,132,252,0.1);border-color:rgba(192,132,252,0.5)}
+
+/* Interval */
+.interval-grid{width:calc(100% - 48px);max-width:472px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;position:relative;z-index:1}
+.int-btn{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .15s;font-family:'Syne',sans-serif}
+.int-btn:hover{border-color:var(--border2)}
+.int-btn.active{border-color:var(--accent);background:rgba(74,240,196,0.05)}
+.int-icon{font-size:18px;display:block;margin-bottom:5px}
+.int-label{font-size:12px;font-weight:600;color:var(--muted)}
+.int-btn.active .int-label{color:var(--accent)}
+
+/* Day selector (shown for weekly/monthly) */
+.day-selector{width:calc(100% - 48px);max-width:472px;position:relative;z-index:1;margin-bottom:10px;overflow:hidden;max-height:0;transition:max-height .35s ease, opacity .3s ease;opacity:0}
+.day-selector.show{max-height:120px;opacity:1}
+.day-selector-inner{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px}
+.day-selector-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.day-btns{display:flex;flex-wrap:wrap;gap:6px}
+.day-btn{padding:6px 12px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);cursor:pointer;transition:all .15s}
+.day-btn:hover{border-color:var(--border2)}
+.day-btn.active{background:rgba(74,240,196,0.08);border-color:var(--accent);color:var(--accent)}
+.month-day-input{width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--text);text-align:center;outline:none;-webkit-appearance:none;transition:border-color .2s}
+.month-day-input:focus{border-color:var(--accent)}
+.month-day-hint{font-size:12px;color:var(--muted);margin-left:10px;align-self:center}
+
+/* Notif status */
+.notif-card{width:calc(100% - 48px);max-width:472px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:10px;position:relative;z-index:1}
+.notif-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .3s}
+.notif-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.notif-info{flex:1}
+.notif-name{font-size:14px;font-weight:600}
+.notif-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.notif-badge{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);background:rgba(74,240,196,0.07);border:1px solid rgba(74,240,196,0.18);border-radius:8px;padding:5px 10px;white-space:nowrap;display:none;line-height:1.4;text-align:right}
+
+/* Time row */
+.time-row{width:calc(100% - 48px);max-width:472px;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px;position:relative;z-index:1}
+.time-in{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:22px;color:var(--text);text-align:center;outline:none;-webkit-appearance:none;transition:border-color .2s}
+.time-in:focus{border-color:var(--accent)}
+.time-colon{font-family:'JetBrains Mono',monospace;font-size:26px;color:var(--muted);padding-bottom:2px}
+.btn-2col{width:calc(100% - 48px);max-width:472px;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;position:relative;z-index:1}
+.btn{padding:15px;border-radius:14px;font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;letter-spacing:.02em}
+.btn:active{transform:scale(0.97)}
+.btn-accent{background:var(--accent);color:#080c14}
+.btn-accent:hover{background:#6fffd4}
+.btn-outline{background:var(--surface);color:var(--text);border-color:var(--border)}
+.btn-outline:hover{border-color:var(--border2)}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(4,7,14,0.85);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:var(--surface2);border:1px solid var(--border2);border-radius:24px;padding:32px 28px;width:calc(100% - 48px);max-width:360px;position:relative}
+.modal::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);border-radius:24px 24px 0 0}
+.modal-title{font-size:18px;font-weight:700;text-align:center;margin-bottom:24px}
+.modal-fields{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px;margin-bottom:24px}
+.modal-field label{display:block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.modal-field input{width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--text);text-align:center;outline:none;-webkit-appearance:none;transition:border-color .2s}
+.modal-field input:focus{border-color:var(--purple)}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-btns button{padding:14px;border-radius:12px;font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.modal-btns button:active{transform:scale(0.97)}
+.m-cancel{background:var(--surface3);color:var(--muted)}
+.m-ok{background:var(--purple);color:#fff}
+.m-ok:hover{background:#d8a4ff}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:12px 22px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);z-index:999;transition:transform .35s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;letter-spacing:.05em}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.perm-banner{width:calc(100% - 48px);max-width:472px;background:rgba(74,240,196,0.04);border:1px solid rgba(74,240,196,0.15);border-radius:14px;padding:12px 16px;font-size:12px;color:var(--accent);margin-bottom:10px;position:relative;z-index:1;display:none}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:380px){.hero-number{font-size:62px}.detail-num{font-size:24px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-eyebrow">Зворотній відлік</div>
+  <div class="header-title" id="headerTitle">До <span>24 грудня 2027</span></div>
+  <div class="header-clock" id="liveClock"></div>
+</div>
+
+<div class="card-hero">
+  <div class="hero-label">залишилось</div>
+  <div><span class="hero-number" id="totalDays">—</span><span class="hero-unit">днів</span></div>
+  <div class="past-tag" id="pastTag">Дата вже минула</div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-labels"><span id="startLabel">—</span><span id="endLabel">—</span></div>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-cell"><div class="detail-num" id="dYears">—</div><div class="detail-lbl">років</div></div>
+  <div class="detail-cell"><div class="detail-num" id="dMonths">—</div><div class="detail-lbl">місяців</div></div>
+  <div class="detail-cell"><div class="detail-num" id="dDays">—</div><div class="detail-lbl">днів</div></div>
+</div>
+
+<div class="divider"></div>
+<div class="section-head">цільова дата</div>
+<div class="target-card">
+  <div><div class="target-sub">відлік до</div><div class="target-val" id="targetVal">24.12.2027</div></div>
+</div>
+<button class="btn-full btn-ghost-purple" onclick="openModal()">Змінити дату відліку</button>
+
+<div class="divider"></div>
+<div class="section-head">нагадування</div>
+
+<div id="permBanner" class="perm-banner">Дозвольте сповіщення у браузері — натисніть "Зберегти"</div>
+
+<!-- Interval -->
+<div class="interval-grid">
+  <div class="int-btn active" id="int-daily" onclick="pickInterval('daily')">
+    <span class="int-icon">📅</span><span class="int-label">Щодня</span>
+  </div>
+  <div class="int-btn" id="int-weekly" onclick="pickInterval('weekly')">
+    <span class="int-icon">📆</span><span class="int-label">Щотижня</span>
+  </div>
+  <div class="int-btn" id="int-monthly" onclick="pickInterval('monthly')">
+    <span class="int-icon">🗓️</span><span class="int-label">Щомісяця</span>
+  </div>
+</div>
+
+<!-- Weekly: day of week -->
+<div class="day-selector" id="weeklySelector">
+  <div class="day-selector-inner">
+    <div class="day-selector-label">День тижня</div>
+    <div class="day-btns" id="weekDayBtns">
+      <div class="day-btn" data-v="1" onclick="pickWeekDay(1)">Пн</div>
+      <div class="day-btn" data-v="2" onclick="pickWeekDay(2)">Вт</div>
+      <div class="day-btn" data-v="3" onclick="pickWeekDay(3)">Ср</div>
+      <div class="day-btn" data-v="4" onclick="pickWeekDay(4)">Чт</div>
+      <div class="day-btn" data-v="5" onclick="pickWeekDay(5)">Пт</div>
+      <div class="day-btn" data-v="6" onclick="pickWeekDay(6)">Сб</div>
+      <div class="day-btn" data-v="0" onclick="pickWeekDay(0)">Нд</div>
+    </div>
+  </div>
+</div>
+
+<!-- Monthly: day of month -->
+<div class="day-selector" id="monthlySelector">
+  <div class="day-selector-inner">
+    <div class="day-selector-label">День місяця</div>
+    <div style="display:flex;align-items:center">
+      <input class="month-day-input" type="number" id="monthDayInput" min="1" max="31" value="1" placeholder="1">
+      <span class="month-day-hint">число кожного місяця</span>
+    </div>
+  </div>
+</div>
+
+<!-- Status -->
+<div class="notif-card">
+  <div class="notif-dot" id="notifDot"></div>
+  <div class="notif-info">
+    <div class="notif-name" id="notifName">Не налаштовано</div>
+    <div class="notif-sub" id="notifSub">Оберіть інтервал та час</div>
+  </div>
+  <div class="notif-badge" id="notifBadge"></div>
+</div>
+
+<!-- Time -->
+<div class="time-row">
+  <input class="time-in" type="number" id="iHour" min="0" max="23" placeholder="09">
+  <div class="time-colon">:</div>
+  <input class="time-in" type="number" id="iMin" min="0" max="59" placeholder="00">
+</div>
+<div class="btn-2col">
+  <button class="btn btn-accent" onclick="save()">Зберегти</button>
+  <button class="btn btn-outline" onclick="testNotif()">Тест</button>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-title">Цільова дата</div>
+    <div class="modal-fields">
+      <div class="modal-field"><label>День</label><input type="number" id="mD" min="1" max="31"></div>
+      <div class="modal-field"><label>Місяць</label><input type="number" id="mM" min="1" max="12"></div>
+      <div class="modal-field"><label>Рік</label><input type="number" id="mY" min="2024" max="2099"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="m-cancel" onclick="closeModal()">Скасувати</button>
+      <button class="m-ok" onclick="saveDate()">Зберегти</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const NK='countdown_notif', DK='countdown_target';
+const WDAYS=['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+const WDAYS_FULL=['неділю','понеділок','вівторок','середу','четвер','пятницю','суботу'];
+const pad=n=>String(n).padStart(2,'0');
+
+function loadT(){try{const s=JSON.parse(localStorage.getItem(DK));if(s?.day&&s?.month&&s?.year)return s;}catch(e){}return{day:24,month:12,year:2027};}
+function getTD(t){return new Date(t.year,t.month-1,t.day,0,0,0);}
+
+function calc(){
+  const t=loadT(),now=new Date(),target=getTD(t),diff=target-now;
+  const total=Math.floor(diff/864e5);
+  let y=target.getFullYear()-now.getFullYear(),m=target.getMonth()-now.getMonth(),d=target.getDate()-now.getDate();
+  if(d<0){m--;d+=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();}
+  if(m<0){y--;m+=12;}
+  const el=document.getElementById('totalDays');
+  el.textContent=(diff<0?'-':'')+Math.abs(total).toLocaleString('uk-UA');
+  el.className='hero-number'+(diff<0?' neg':'');
+  document.getElementById('dYears').textContent=Math.abs(y);
+  document.getElementById('dMonths').textContent=Math.abs(m);
+  document.getElementById('dDays').textContent=Math.abs(d);
+  document.getElementById('pastTag').style.display=diff<0?'inline-block':'none';
+  const ds=`${pad(t.day)}.${pad(t.month)}.${t.year}`;
+  document.getElementById('targetVal').textContent=ds;
+  document.getElementById('endLabel').textContent=ds;
+  const mns=['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+  document.getElementById('headerTitle').innerHTML=`До <span>${t.day} ${mns[t.month-1]} ${t.year}</span>`;
+  const rs=new Date(t.year-2,t.month-1,t.day),pct=Math.max(0,Math.min(100,((now-rs)/(target-rs))*100));
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('startLabel').textContent=`${pad(t.day)}.${pad(t.month)}.${t.year-2}`;
+}
+
+function clock(){const n=new Date();document.getElementById('liveClock').textContent=`${pad(n.getDate())}.${pad(n.getMonth()+1)}.${n.getFullYear()}  ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3400);}
+
+// Modal
+function openModal(){const t=loadT();document.getElementById('mD').value=t.day;document.getElementById('mM').value=t.month;document.getElementById('mY').value=t.year;document.getElementById('overlay').classList.add('show');}
+function closeModal(){document.getElementById('overlay').classList.remove('show');}
+function saveDate(){
+  const d=parseInt(document.getElementById('mD').value),m=parseInt(document.getElementById('mM').value),y=parseInt(document.getElementById('mY').value);
+  if(isNaN(d)||d<1||d>31||isNaN(m)||m<1||m>12||isNaN(y)||y<2024){toast('Перевірте введені дані');return;}
+  localStorage.setItem(DK,JSON.stringify({day:d,month:m,year:y}));
+  closeModal();calc();toast(`✓ Дату збережено: ${pad(d)}.${pad(m)}.${y}`);
+}
+document.getElementById('overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// Interval + day selectors
+let curInt='daily', curWeekDay=1, curMonthDay=1;
+
+function pickInterval(v){
+  curInt=v;
+  ['daily','weekly','monthly'].forEach(k=>document.getElementById('int-'+k).classList.toggle('active',k===v));
+  document.getElementById('weeklySelector').classList.toggle('show',v==='weekly');
+  document.getElementById('monthlySelector').classList.toggle('show',v==='monthly');
+}
+
+function pickWeekDay(v){
+  curWeekDay=v;
+  document.querySelectorAll('#weekDayBtns .day-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.v)===v));
+}
+
+// Notifications
+function buildMsg(){const t=loadT(),now=new Date(),total=Math.floor((getTD(t)-now)/864e5);return{title:`📅 До ${pad(t.day)}.${pad(t.month)}.${t.year}`,body:`Залишилось ${total} днів`};}
+async function reqPerm(){
+  if(!('Notification'in window)){toast('Браузер не підтримує сповіщення');return false;}
+  if(Notification.permission==='granted')return true;
+  if(Notification.permission==='denied'){toast('Сповіщення заблоковано — дозвольте у браузері');return false;}
+  return(await Notification.requestPermission())==='granted';
+}
+async function testNotif(){if(!await reqPerm())return;const{title,body}=buildMsg();new Notification(title,{body});toast('✓ Тестове сповіщення надіслано');}
+
+// ms until next fire considering interval + day
+function msNextFire(h,m,iv,wday,mday){
+  const now=new Date();
+  if(iv==='daily'){
+    const nx=new Date();nx.setHours(h,m,0,0);if(nx<=now)nx.setDate(nx.getDate()+1);return nx-now;
+  }
+  if(iv==='weekly'){
+    const nx=new Date();nx.setHours(h,m,0,0);
+    let diff=(wday-nx.getDay()+7)%7;
+    if(diff===0&&nx<=now)diff=7;
+    nx.setDate(nx.getDate()+diff);
+    return nx-now;
+  }
+  if(iv==='monthly'){
+    const nx=new Date();
+    nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));
+    nx.setHours(h,m,0,0);
+    if(nx<=now){nx.setMonth(nx.getMonth()+1);nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));}
+    return nx-now;
+  }
+  return 864e5;
+}
+
+function intervalMs(iv){return iv==='daily'?864e5:iv==='weekly'?864e5*7:864e5*30;}
+
+let timer=null;
+function startSched(h,m,iv,wday,mday){
+  if(timer)clearTimeout(timer);
+  function fire(){if(Notification.permission==='granted'){const{title,body}=buildMsg();new Notification(title,{body});}timer=setTimeout(fire,intervalMs(iv));}
+  timer=setTimeout(fire,msNextFire(h,m,iv,wday,mday));
+}
+
+function buildSubText(iv,wday,mday,h,m){
+  if(iv==='daily')   return `щодня о ${pad(h)}:${pad(m)}`;
+  if(iv==='weekly')  return `щотижня у ${WDAYS_FULL[wday]} о ${pad(h)}:${pad(m)}`;
+  if(iv==='monthly') return `${mday}-го числа щомісяця о ${pad(h)}:${pad(m)}`;
+  return '';
+}
+function buildBadge(iv,wday,mday,h,m){
+  if(iv==='daily')   return `${pad(h)}:${pad(m)}\nщодня`;
+  if(iv==='weekly')  return `${pad(h)}:${pad(m)}\n${WDAYS[wday]}`;
+  if(iv==='monthly') return `${pad(h)}:${pad(m)}\n${mday}-го`;
+  return '';
+}
+
+async function save(){
+  const h=parseInt(document.getElementById('iHour').value),m=parseInt(document.getElementById('iMin').value);
+  if(isNaN(h)||h<0||h>23||isNaN(m)||m<0||m>59){toast('Введіть коректний час');return;}
+  if(curInt==='weekly'&&curWeekDay===undefined){toast('Оберіть день тижня');return;}
+  curMonthDay=parseInt(document.getElementById('monthDayInput').value)||1;
+  if(curInt==='monthly'&&(curMonthDay<1||curMonthDay>31)){toast('Введіть день місяця 1–31');return;}
+  if(!await reqPerm())return;
+  localStorage.setItem(NK,JSON.stringify({h,m,interval:curInt,weekDay:curWeekDay,monthDay:curMonthDay,enabled:true}));
+  startSched(h,m,curInt,curWeekDay,curMonthDay);
+  updateUI(true,h,m,curInt,curWeekDay,curMonthDay);
+  toast(`✓ ${buildSubText(curInt,curWeekDay,curMonthDay,h,m)}`);
+}
+
+function updateUI(on,h,m,iv,wday,mday){
+  document.getElementById('notifDot').classList.toggle('on',on);
+  document.getElementById('notifName').textContent=on?'Активно':'Не налаштовано';
+  document.getElementById('notifSub').textContent=on?buildSubText(iv,wday,mday,h,m):'Оберіть інтервал та час';
+  const badge=document.getElementById('notifBadge');
+  badge.style.display=on?'block':'none';
+  if(on){
+    badge.style.whiteSpace='pre';
+    badge.textContent=buildBadge(iv,wday,mday,h,m);
+    document.getElementById('iHour').value=h;
+    document.getElementById('iMin').value=pad(m);
+    document.getElementById('monthDayInput').value=mday||1;
+    pickInterval(iv||'daily');
+    if(iv==='weekly')pickWeekDay(wday||1);
+  }
+}
+
+// Init
+calc();clock();setInterval(clock,1000);setInterval(calc,60000);
+if(Notification.permission==='default')document.getElementById('permBanner').style.display='block';
+try{
+  const s=JSON.parse(localStorage.getItem(NK));
+  if(s?.enabled){
+    curWeekDay=s.weekDay??1;curMonthDay=s.monthDay??1;
+    updateUI(true,s.h,s.m,s.interval||'daily',s.weekDay??1,s.monthDay??1);
+    if(Notification.permission==='granted')startSched(s.h,s.m,s.interval||'daily',s.weekDay??1,s.monthDay??1);
+  }
+}catch(e){}
+</script>
+</body>
+</html>
