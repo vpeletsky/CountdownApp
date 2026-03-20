@@ -36,13 +36,13 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+       run: ./gradlew bundleRelease
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: countdown-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
       - name: Build Debug APK
