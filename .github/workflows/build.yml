@@ -30,15 +30,15 @@ jobs:
       - name: Decode Keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/countdown.jks
 
-      - name: Build Release APK
+      - name: Build Release Bundle
         env:
           KEYSTORE_PATH: countdown.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-       run: ./gradlew bundleRelease
+        run: ./gradlew bundleRelease
 
-      - name: Upload Release APK
+      - name: Upload Release Bundle
         uses: actions/upload-artifact@v4
         with:
           name: countdown-release
