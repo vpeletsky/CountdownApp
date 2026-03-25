@@ -307,46 +307,100 @@ function pickWeekDay(v){
   document.querySelectorAll('#weekDayBtns .day-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.v)===v));
 }
 
-// Notifications
+// ── Capacitor detection ──────────────────────────────────────────────────────
+const isCapacitor=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const getLN=()=>window.Capacitor?.Plugins?.LocalNotifications;
+
+// ── Message builder ──────────────────────────────────────────────────────────
 function buildMsg(){const t=loadT(),now=new Date(),total=Math.floor((getTD(t)-now)/864e5);return{title:`📅 До ${pad(t.day)}.${pad(t.month)}.${t.year}`,body:`Залишилось ${total} днів`};}
+
+// ── Permission request ───────────────────────────────────────────────────────
 async function reqPerm(){
-  if(!('Notification'in window)){toast('Браузер не підтримує сповіщення');return false;}
+  if(isCapacitor()){
+    try{
+      const ln=getLN();
+      if(!ln){toast('LocalNotifications недоступний');return false;}
+      const r=await ln.requestPermissions();
+      if(r.display!=='granted'){toast('Дозвольте сповіщення у налаштуваннях телефону');return false;}
+      return true;
+    }catch(e){toast('Помилка дозволу: '+e.message);return false;}
+  }
+  // Web fallback
+  if(!('Notification'in window)){toast('Сповіщення не підтримуються');return false;}
   if(Notification.permission==='granted')return true;
-  if(Notification.permission==='denied'){toast('Сповіщення заблоковано — дозвольте у браузері');return false;}
+  if(Notification.permission==='denied'){toast('Сповіщення заблоковано у браузері');return false;}
   return(await Notification.requestPermission())==='granted';
 }
-async function testNotif(){if(!await reqPerm())return;const{title,body}=buildMsg();new Notification(title,{body});toast('✓ Тестове сповіщення надіслано');}
 
-// ms until next fire considering interval + day
-function msNextFire(h,m,iv,wday,mday){
+// ── Next fire date calculation ───────────────────────────────────────────────
+function nextFireDate(h,m,iv,wday,mday){
   const now=new Date();
   if(iv==='daily'){
-    const nx=new Date();nx.setHours(h,m,0,0);if(nx<=now)nx.setDate(nx.getDate()+1);return nx-now;
+    const nx=new Date();nx.setHours(h,m,0,0);if(nx<=now)nx.setDate(nx.getDate()+1);return nx;
   }
   if(iv==='weekly'){
     const nx=new Date();nx.setHours(h,m,0,0);
     let diff=(wday-nx.getDay()+7)%7;
     if(diff===0&&nx<=now)diff=7;
-    nx.setDate(nx.getDate()+diff);
-    return nx-now;
+    nx.setDate(nx.getDate()+diff);return nx;
   }
   if(iv==='monthly'){
     const nx=new Date();
     nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));
     nx.setHours(h,m,0,0);
     if(nx<=now){nx.setMonth(nx.getMonth()+1);nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));}
-    return nx-now;
+    return nx;
   }
-  return 864e5;
+  return new Date(Date.now()+864e5);
 }
 
-function intervalMs(iv){return iv==='daily'?864e5:iv==='weekly'?864e5*7:864e5*30;}
+// ── Schedule via Capacitor LocalNotifications ────────────────────────────────
+async function startSched(h,m,iv,wday,mday){
+  if(isCapacitor()){
+    try{
+      const ln=getLN();
+      // Cancel previous
+      await ln.cancel({notifications:[{id:42}]}).catch(()=>{});
+      const{title,body}=buildMsg();
+      const everyMap={daily:'day',weekly:'week',monthly:'month'};
+      await ln.schedule({notifications:[{
+        id:42,
+        title,
+        body,
+        schedule:{
+          at:nextFireDate(h,m,iv,wday,mday),
+          repeats:true,
+          every:everyMap[iv]||'day',
+          ...(iv==='weekly'?{on:{weekday:wday===0?7:wday}}:{}),
+          ...(iv==='monthly'?{on:{day:mday}}:{})
+        },
+        smallIcon:'ic_stat_icon_config_sample',
+        channelId:'countdown'
+      }]});
+    }catch(e){console.warn('Schedule error:',e);}
+    return;
+  }
+  // Web fallback (setTimeout)
+  if(window._ctTimer)clearTimeout(window._ctTimer);
+  const ms=nextFireDate(h,m,iv,wday,mday)-Date.now();
+  const ivMs={daily:864e5,weekly:864e5*7,monthly:864e5*30};
+  function fire(){if(Notification.permission==='granted'){const{title,body}=buildMsg();new Notification(title,{body});}window._ctTimer=setTimeout(fire,ivMs[iv]||864e5);}
+  window._ctTimer=setTimeout(fire,ms);
+}
 
-let timer=null;
-function startSched(h,m,iv,wday,mday){
-  if(timer)clearTimeout(timer);
-  function fire(){if(Notification.permission==='granted'){const{title,body}=buildMsg();new Notification(title,{body});}timer=setTimeout(fire,intervalMs(iv));}
-  timer=setTimeout(fire,msNextFire(h,m,iv,wday,mday));
+// ── Test notification ────────────────────────────────────────────────────────
+async function testNotif(){
+  if(!await reqPerm())return;
+  if(isCapacitor()){
+    try{
+      const ln=getLN();
+      const{title,body}=buildMsg();
+      await ln.schedule({notifications:[{id:99,title,body,schedule:{at:new Date(Date.now()+1000)}}]});
+      toast('✓ Тестове сповіщення через 1 сек');
+    }catch(e){toast('Помилка тесту: '+e.message);}
+    return;
+  }
+  const{title,body}=buildMsg();new Notification(title,{body});toast('✓ Тестове сповіщення надіслано');
 }
 
 function buildSubText(iv,wday,mday,h,m){
@@ -394,7 +448,7 @@ function updateUI(on,h,m,iv,wday,mday){
 
 // Init
 calc();clock();setInterval(clock,1000);setInterval(calc,60000);
-if(Notification.permission==='default')document.getElementById('permBanner').style.display='block';
+if(!isCapacitor()&&'Notification'in window&&Notification.permission==='default')document.getElementById('permBanner').style.display='block';
 try{
   const s=JSON.parse(localStorage.getItem(NK));
   if(s?.enabled){
