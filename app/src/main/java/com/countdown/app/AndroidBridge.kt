@@ -100,14 +100,7 @@ class AndroidBridge(private val context: Context) {
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-        // На Android 12+ перевірити дозвіл на точні будильники
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            !alarmManager.canScheduleExactAlarms()) {
-            // Без дозволу — нічого не робимо; дозвіл запитується в MainActivity
-            return
-        }
-
-        // Intent з усіма параметрами для самоперепланування в Receiver
+     // Intent з усіма параметрами для самоперепланування в Receiver
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra("hour",     hour)
             putExtra("minute",   minute)
@@ -124,7 +117,7 @@ class AndroidBridge(private val context: Context) {
 
         val fireAt = nextFireTime(hour, minute, interval, weekDay, monthDay)
 
-        alarmManager.setExactAndAllowWhileIdle(
+        alarmManager.setAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             fireAt,
             pending
