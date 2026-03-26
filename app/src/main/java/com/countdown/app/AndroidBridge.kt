@@ -50,6 +50,24 @@ class AndroidBridge(private val context: Context) {
         showNotification(context, title, body, notifId = 1)
     }
 
+    // ── JS → cancelNotification ───────────────────────────────────────────────
+    @JavascriptInterface
+    fun cancelNotification() {
+        // Вимкнути в SharedPreferences
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("enabled", false)
+            .apply()
+
+        // Скасувати будильник
+        val intent = Intent(context, NotificationReceiver::class.java)
+        val pending = PendingIntent.getBroadcast(
+            context, REQUEST_CODE, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(pending)
+    }
+
     // ── JS → saveTargetDate ───────────────────────────────────────────────────
     @JavascriptInterface
     fun saveTargetDate(day: Int, month: Int, year: Int) {
