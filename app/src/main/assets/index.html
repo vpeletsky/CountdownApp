@@ -308,7 +308,13 @@ function pickWeekDay(v){
 }
 
 // ── Capacitor detection ──────────────────────────────────────────────────────
-const isCapacitor=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+// Перевіряємо декількома способами; якщо web Notification API відсутній —
+// вважаємо що ми в нативному WebView навіть якщо Capacitor ще не ініційований
+const isCapacitor=()=>!!(
+  (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())||
+  (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications)||
+  !('Notification'in window)
+);
 const getLN=()=>window.Capacitor?.Plugins?.LocalNotifications;
 
 // ── Message builder ──────────────────────────────────────────────────────────
@@ -325,8 +331,8 @@ async function reqPerm(){
       return true;
     }catch(e){toast('Помилка дозволу: '+e.message);return false;}
   }
-  // Web fallback
-  if(!('Notification'in window)){toast('Сповіщення не підтримуються');return false;}
+  // Web fallback — якщо Notification API відсутній, це нативне середовище без Capacitor плагіна
+  if(!('Notification'in window)){toast('Встановіть дозвіл у налаштуваннях телефону (Налаштування → Додатки → Відлік → Сповіщення)');return false;}
   if(Notification.permission==='granted')return true;
   if(Notification.permission==='denied'){toast('Сповіщення заблоковано у браузері');return false;}
   return(await Notification.requestPermission())==='granted';
@@ -448,6 +454,14 @@ function updateUI(on,h,m,iv,wday,mday){
 
 // Init
 calc();clock();setInterval(clock,1000);setInterval(calc,60000);
+// Діагностика середовища (можна прибрати після налагодження)
+setTimeout(()=>{
+  const cap=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+  const ln=!!(window.Capacitor?.Plugins?.LocalNotifications);
+  const notifAPI=('Notification'in window);
+  console.log('[Відлік] Capacitor:',cap,'LN plugin:',ln,'web Notification:',notifAPI);
+  // toast(`cap:${cap} ln:${ln} webN:${notifAPI}`); // розкоментуй для відладки
+},1500);
 if(!isCapacitor()&&'Notification'in window&&Notification.permission==='default')document.getElementById('permBanner').style.display='block';
 try{
   const s=JSON.parse(localStorage.getItem(NK));
