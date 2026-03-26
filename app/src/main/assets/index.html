@@ -307,103 +307,51 @@ function pickWeekDay(v){
   document.querySelectorAll('#weekDayBtns .day-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.v)===v));
 }
 
-// ── Capacitor detection ──────────────────────────────────────────────────────
-// Перевіряємо декількома способами; якщо web Notification API відсутній —
-// вважаємо що ми в нативному WebView навіть якщо Capacitor ще не ініційований
-const isCapacitor=()=>!!(
-  (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())||
-  (window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications)||
-  !('Notification'in window)
-);
-const getLN=()=>window.Capacitor?.Plugins?.LocalNotifications;
+// ── Android detection ────────────────────────────────────────────────────────
+const isAndroid=()=>!!(window.AndroidBridge||window.isAndroidApp);
 
 // ── Message builder ──────────────────────────────────────────────────────────
 function buildMsg(){const t=loadT(),now=new Date(),total=Math.floor((getTD(t)-now)/864e5);return{title:`📅 До ${pad(t.day)}.${pad(t.month)}.${t.year}`,body:`Залишилось ${total} днів`};}
 
 // ── Permission request ───────────────────────────────────────────────────────
 async function reqPerm(){
-  if(isCapacitor()){
-    try{
-      const ln=getLN();
-      if(!ln){toast('LocalNotifications недоступний');return false;}
-      const r=await ln.requestPermissions();
-      if(r.display!=='granted'){toast('Дозвольте сповіщення у налаштуваннях телефону');return false;}
-      return true;
-    }catch(e){toast('Помилка дозволу: '+e.message);return false;}
-  }
-  // Web fallback — якщо Notification API відсутній, це нативне середовище без Capacitor плагіна
-  if(!('Notification'in window)){toast('Встановіть дозвіл у налаштуваннях телефону (Налаштування → Додатки → Відлік → Сповіщення)');return false;}
+  if(isAndroid())return true; // дозвіл запитується нативно в MainActivity
+  if(!('Notification'in window)){toast('Сповіщення недоступні у браузері');return false;}
   if(Notification.permission==='granted')return true;
   if(Notification.permission==='denied'){toast('Сповіщення заблоковано у браузері');return false;}
   return(await Notification.requestPermission())==='granted';
 }
 
-// ── Next fire date calculation ───────────────────────────────────────────────
-function nextFireDate(h,m,iv,wday,mday){
-  const now=new Date();
-  if(iv==='daily'){
-    const nx=new Date();nx.setHours(h,m,0,0);if(nx<=now)nx.setDate(nx.getDate()+1);return nx;
-  }
-  if(iv==='weekly'){
-    const nx=new Date();nx.setHours(h,m,0,0);
-    let diff=(wday-nx.getDay()+7)%7;
-    if(diff===0&&nx<=now)diff=7;
-    nx.setDate(nx.getDate()+diff);return nx;
-  }
-  if(iv==='monthly'){
-    const nx=new Date();
-    nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));
-    nx.setHours(h,m,0,0);
-    if(nx<=now){nx.setMonth(nx.getMonth()+1);nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));}
-    return nx;
-  }
-  return new Date(Date.now()+864e5);
-}
-
-// ── Schedule via Capacitor LocalNotifications ────────────────────────────────
-async function startSched(h,m,iv,wday,mday){
-  if(isCapacitor()){
-    try{
-      const ln=getLN();
-      // Cancel previous
-      await ln.cancel({notifications:[{id:42}]}).catch(()=>{});
-      const{title,body}=buildMsg();
-      const everyMap={daily:'day',weekly:'week',monthly:'month'};
-      await ln.schedule({notifications:[{
-        id:42,
-        title,
-        body,
-        schedule:{
-          at:nextFireDate(h,m,iv,wday,mday),
-          repeats:true,
-          every:everyMap[iv]||'day',
-          ...(iv==='weekly'?{on:{weekday:wday===0?7:wday}}:{}),
-          ...(iv==='monthly'?{on:{day:mday}}:{})
-        },
-        smallIcon:'ic_stat_icon_config_sample',
-        channelId:'countdown'
-      }]});
-    }catch(e){console.warn('Schedule error:',e);}
+// ── Schedule ─────────────────────────────────────────────────────────────────
+function startSched(h,m,iv,wday,mday){
+  if(isAndroid()&&window.AndroidBridge){
+    const{title,body}=buildMsg();
+    window.AndroidBridge.scheduleNotification(JSON.stringify({
+      hour:h,minute:m,interval:iv,weekDay:wday,monthDay:mday,title,body
+    }));
     return;
   }
   // Web fallback (setTimeout)
   if(window._ctTimer)clearTimeout(window._ctTimer);
-  const ms=nextFireDate(h,m,iv,wday,mday)-Date.now();
+  function nextFire(){
+    const now=new Date(),nx=new Date();nx.setHours(h,m,0,0);
+    if(iv==='daily'){if(nx<=now)nx.setDate(nx.getDate()+1);}
+    else if(iv==='weekly'){let d=(wday-nx.getDay()+7)%7;if(d===0&&nx<=now)d=7;nx.setDate(nx.getDate()+d);}
+    else if(iv==='monthly'){nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));if(nx<=now){nx.setMonth(nx.getMonth()+1);nx.setDate(Math.min(mday,new Date(nx.getFullYear(),nx.getMonth()+1,0).getDate()));}}
+    return nx;
+  }
   const ivMs={daily:864e5,weekly:864e5*7,monthly:864e5*30};
   function fire(){if(Notification.permission==='granted'){const{title,body}=buildMsg();new Notification(title,{body});}window._ctTimer=setTimeout(fire,ivMs[iv]||864e5);}
-  window._ctTimer=setTimeout(fire,ms);
+  window._ctTimer=setTimeout(fire,nextFire()-Date.now());
 }
 
 // ── Test notification ────────────────────────────────────────────────────────
 async function testNotif(){
   if(!await reqPerm())return;
-  if(isCapacitor()){
-    try{
-      const ln=getLN();
-      const{title,body}=buildMsg();
-      await ln.schedule({notifications:[{id:99,title,body,schedule:{at:new Date(Date.now()+1000)}}]});
-      toast('✓ Тестове сповіщення через 1 сек');
-    }catch(e){toast('Помилка тесту: '+e.message);}
+  if(isAndroid()&&window.AndroidBridge){
+    const{title,body}=buildMsg();
+    window.AndroidBridge.sendTestNotification(title,body);
+    toast('✓ Тестове сповіщення надіслано');
     return;
   }
   const{title,body}=buildMsg();new Notification(title,{body});toast('✓ Тестове сповіщення надіслано');
@@ -454,21 +402,16 @@ function updateUI(on,h,m,iv,wday,mday){
 
 // Init
 calc();clock();setInterval(clock,1000);setInterval(calc,60000);
-// Діагностика середовища (можна прибрати після налагодження)
 setTimeout(()=>{
-  const cap=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
-  const ln=!!(window.Capacitor?.Plugins?.LocalNotifications);
-  const notifAPI=('Notification'in window);
-  console.log('[Відлік] Capacitor:',cap,'LN plugin:',ln,'web Notification:',notifAPI);
-  // toast(`cap:${cap} ln:${ln} webN:${notifAPI}`); // розкоментуй для відладки
+  console.log('[Відлік] AndroidBridge:',!!window.AndroidBridge,'isAndroidApp:',!!window.isAndroidApp);
 },1500);
-if(!isCapacitor()&&'Notification'in window&&Notification.permission==='default')document.getElementById('permBanner').style.display='block';
+if(!isAndroid()&&'Notification'in window&&Notification.permission==='default')document.getElementById('permBanner').style.display='block';
 try{
   const s=JSON.parse(localStorage.getItem(NK));
   if(s?.enabled){
     curWeekDay=s.weekDay??1;curMonthDay=s.monthDay??1;
     updateUI(true,s.h,s.m,s.interval||'daily',s.weekDay??1,s.monthDay??1);
-    if(Notification.permission==='granted')startSched(s.h,s.m,s.interval||'daily',s.weekDay??1,s.monthDay??1);
+    if(isAndroid()||Notification.permission==='granted')startSched(s.h,s.m,s.interval||'daily',s.weekDay??1,s.monthDay??1);
   }
 }catch(e){}
 </script>
