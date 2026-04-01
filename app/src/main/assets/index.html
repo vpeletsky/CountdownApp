@@ -291,6 +291,7 @@ function saveDate(){
   const d=parseInt(document.getElementById('mD').value),m=parseInt(document.getElementById('mM').value),y=parseInt(document.getElementById('mY').value);
   if(isNaN(d)||d<1||d>31||isNaN(m)||m<1||m>12||isNaN(y)||y<2024){toast('Перевірте введені дані');return;}
   localStorage.setItem(DK,JSON.stringify({day:d,month:m,year:y}));
+  if(isAndroid()&&window.AndroidBridge)window.AndroidBridge.saveTargetDate(d,m,y);
   closeModal();calc();toast(`✓ Дату збережено: ${pad(d)}.${pad(m)}.${y}`);
 }
 document.getElementById('overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
@@ -328,6 +329,8 @@ async function reqPerm(){
 // ── Schedule ─────────────────────────────────────────────────────────────────
 function startSched(h,m,iv,wday,mday){
   if(isAndroid()&&window.AndroidBridge){
+    const t=loadT();
+    window.AndroidBridge.saveTargetDate(t.day,t.month,t.year);
     const{title,body}=buildMsg();
     window.AndroidBridge.scheduleNotification(JSON.stringify({
       hour:h,minute:m,interval:iv,weekDay:wday,monthDay:mday,title,body
