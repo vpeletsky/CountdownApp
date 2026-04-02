@@ -100,15 +100,32 @@ class AndroidBridge(private val context: Context) {
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-     // Intent з усіма параметрами для самоперепланування в Receiver
+        // На Android 12+ перевірити дозвіл на точні будильники
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()) {
+            // Без дозволу — нічого не робимо; дозвіл запитується в MainActivity
+            return
+        }
+
+        // Читаємо target дату з SharedPreferences, щоб вбудувати в Intent
+        // (резервний шлях: якщо SharedPrefs буде очищено, Intent несе дату сам)
+        val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val tDay   = sp.getInt("target_day",   0)
+        val tMonth = sp.getInt("target_month", 0)
+        val tYear  = sp.getInt("target_year",  0)
+
+        // Intent з усіма параметрами для самоперепланування в Receiver
         val intent = Intent(context, NotificationReceiver::class.java).apply {
-            putExtra("hour",     hour)
-            putExtra("minute",   minute)
-            putExtra("interval", interval)
-            putExtra("weekDay",  weekDay)
-            putExtra("monthDay", monthDay)
-            putExtra("title",    title)
-            putExtra("body",     body)
+            putExtra("hour",          hour)
+            putExtra("minute",        minute)
+            putExtra("interval",      interval)
+            putExtra("weekDay",       weekDay)
+            putExtra("monthDay",      monthDay)
+            putExtra("title",         title)
+            putExtra("body",          body)
+            putExtra("target_day",    tDay)   // дублюємо дату в Intent
+            putExtra("target_month",  tMonth)
+            putExtra("target_year",   tYear)
         }
         val pending = PendingIntent.getBroadcast(
             context, REQUEST_CODE, intent,
@@ -117,7 +134,7 @@ class AndroidBridge(private val context: Context) {
 
         val fireAt = nextFireTime(hour, minute, interval, weekDay, monthDay)
 
-        alarmManager.setAndAllowWhileIdle(
+        alarmManager.setExactAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             fireAt,
             pending
