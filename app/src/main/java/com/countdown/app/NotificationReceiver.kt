@@ -17,11 +17,27 @@ class NotificationReceiver : BroadcastReceiver() {
         val weekDay  = intent.getIntExtra("weekDay",  1)
         val monthDay = intent.getIntExtra("monthDay", 1)
 
-        // Динамічно розраховуємо title і body з SharedPreferences
+        // Читаємо target дату з SharedPreferences
         val prefs = context.getSharedPreferences(AndroidBridge.PREFS, Context.MODE_PRIVATE)
-        val targetDay   = prefs.getInt("target_day",   0)
-        val targetMonth = prefs.getInt("target_month", 0)
-        val targetYear  = prefs.getInt("target_year",  0)
+        var targetDay   = prefs.getInt("target_day",   0)
+        var targetMonth = prefs.getInt("target_month", 0)
+        var targetYear  = prefs.getInt("target_year",  0)
+
+        // РЕЗЕРВНИЙ ШЛЯХ: якщо SharedPrefs порожній — беремо з Intent extras
+        // (AndroidBridge.scheduleAlarm вбудовує туди дату при кожному плануванні)
+        if (targetYear == 0) {
+            targetDay   = intent.getIntExtra("target_day",   0)
+            targetMonth = intent.getIntExtra("target_month", 0)
+            targetYear  = intent.getIntExtra("target_year",  0)
+            // Відновлюємо SharedPreferences, якщо дані є в Intent
+            if (targetYear > 0) {
+                prefs.edit()
+                    .putInt("target_day",   targetDay)
+                    .putInt("target_month", targetMonth)
+                    .putInt("target_year",  targetYear)
+                    .apply()
+            }
+        }
 
         val (title, body) = if (targetYear > 0) {
             // Розрахунок кількості днів
@@ -46,11 +62,16 @@ class NotificationReceiver : BroadcastReceiver() {
             }
             Pair(titleStr, bodyStr)
         } else {
-            // Якщо дата не збережена — використати з Intent
-            Pair(
-                intent.getStringExtra("title") ?: "📅 Відлік",
-                intent.getStringExtra("body")  ?: ""
-            )
+            // Крайній fallback: якщо дата взагалі невідома
+            val fbTitle = intent.getStringExtra("title")
+                ?: prefs.getString("notifTitle", null)
+                ?: "📅 Відлік"
+            val fbBody  = intent.getStringExtra("body")
+                ?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("notifBody", null)
+                    ?.takeIf { it.isNotBlank() }
+                ?: "Залишилось рахувати"
+            Pair(fbTitle, fbBody)
         }
 
         // Показати сповіщення
