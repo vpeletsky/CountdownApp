@@ -62,24 +62,24 @@ class NotificationReceiver : BroadcastReceiver() {
             }
             Pair(titleStr, bodyStr)
         } else {
-            // Крайній fallback: якщо дата взагалі невідома
-            val fbTitle = intent.getStringExtra("title")
-                ?: prefs.getString("notifTitle", null)
+            // Крайній fallback: якщо дата взагалі невідома.
+            // УВАГА: навмисно НЕ беремо body з Intent — там може бути застарілий відлік
+            // (наприклад "Залишилось 633 днів" з дня, коли будильник востаннє планувався).
+            // Замість цього — просимо користувача відкрити додаток.
+            val fbTitle = prefs.getString("notifTitle", null)
                 ?: "📅 Відлік"
-            val fbBody  = intent.getStringExtra("body")
-                ?.takeIf { it.isNotBlank() }
-                ?: prefs.getString("notifBody", null)
-                    ?.takeIf { it.isNotBlank() }
-                ?: "Залишилось рахувати"
+            val fbBody  = "Відкрийте додаток для оновлення"
             Pair(fbTitle, fbBody)
         }
 
         // Показати сповіщення
         AndroidBridge.showNotification(context, title, body, notifId = 2)
 
-        // Запланувати НАСТУПНЕ спрацювання (setExactAndAllowWhileIdle — одноразовий)
+        // Запланувати НАСТУПНЕ спрацювання (setExactAndAllowWhileIdle — одноразовий).
+        // Передаємо порожні title/body, щоб fallback-гілка наступного Intent
+        // ніколи не містила застарілого відліку днів.
         AndroidBridge(context).scheduleAlarm(
-            hour, minute, interval, weekDay, monthDay, title, body
+            hour, minute, interval, weekDay, monthDay, "", ""
         )
     }
 
