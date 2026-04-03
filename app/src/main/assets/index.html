@@ -418,6 +418,9 @@ function updateUI(on,h,m,iv,wday,mday){
 
 // Init
 calc();clock();setInterval(clock,1000);setInterval(calc,60000);
+// Завжди синхронізуємо цільову дату з Android SharedPrefs при старті,
+// щоб будильник мав актуальні дані навіть якщо сповіщення не перепланувались.
+if(isAndroid()&&window.AndroidBridge){const t=loadT();window.AndroidBridge.saveTargetDate(t.day,t.month,t.year);}
 setTimeout(()=>{
   console.log('[Відлік] AndroidBridge:',!!window.AndroidBridge,'isAndroidApp:',!!window.isAndroidApp);
 },1500);
