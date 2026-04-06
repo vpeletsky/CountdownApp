@@ -45,12 +45,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 set(targetYear, targetMonth - 1, targetDay, 0, 0, 0)
                 set(Calendar.MILLISECOND, 0)
             }
-            val today = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
+            val today = Calendar.getInstance() // поточний момент, як у JS: Math.floor((target - now) / 864e5)
             val diffMs   = target.timeInMillis - today.timeInMillis
             val diffDays = TimeUnit.MILLISECONDS.toDays(diffMs)
 
@@ -62,24 +57,24 @@ class NotificationReceiver : BroadcastReceiver() {
             }
             Pair(titleStr, bodyStr)
         } else {
-            // Крайній fallback: якщо дата взагалі невідома.
-            // УВАГА: навмисно НЕ беремо body з Intent — там може бути застарілий відлік
-            // (наприклад "Залишилось 633 днів" з дня, коли будильник востаннє планувався).
-            // Замість цього — просимо користувача відкрити додаток.
-            val fbTitle = prefs.getString("notifTitle", null)
+            // Крайній fallback: якщо дата взагалі невідома
+            val fbTitle = intent.getStringExtra("title")
+                ?: prefs.getString("notifTitle", null)
                 ?: "📅 Відлік"
-            val fbBody  = "Відкрийте додаток для оновлення"
+            val fbBody  = intent.getStringExtra("body")
+                ?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("notifBody", null)
+                    ?.takeIf { it.isNotBlank() }
+                ?: "Залишилось рахувати"
             Pair(fbTitle, fbBody)
         }
 
         // Показати сповіщення
         AndroidBridge.showNotification(context, title, body, notifId = 2)
 
-        // Запланувати НАСТУПНЕ спрацювання (setExactAndAllowWhileIdle — одноразовий).
-        // Передаємо порожні title/body, щоб fallback-гілка наступного Intent
-        // ніколи не містила застарілого відліку днів.
+        // Запланувати НАСТУПНЕ спрацювання (setExactAndAllowWhileIdle — одноразовий)
         AndroidBridge(context).scheduleAlarm(
-            hour, minute, interval, weekDay, monthDay, "", ""
+            hour, minute, interval, weekDay, monthDay, title, body
         )
     }
 
