@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace 'com.countdown.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.vpeletsky.vidlik"
         minSdk 26
-        targetSdk 35
-        versionCode 13
-        versionName "1.6"
+        targetSdk 36
+        versionCode 14
+        versionName "1.7"
     }
 
     signingConfigs {
